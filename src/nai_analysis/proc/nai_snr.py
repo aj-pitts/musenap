@@ -1,0 +1,93 @@
+import numpy as np
+from astropy.io import fits
+from tqdm import tqdm
+from musedap_data import MuseDAPData
+from utils import util, bitmask
+from typing import Optional
+
+def snr_map(muse_data: MuseDAPData, redshift_dict: Optional[dict[str, np.ndarray]] = None, verbose = False) -> dict:
+    spatial_bins = muse_data.spatial_bins
+    flux = muse_data.flux
+    ivar = muse_data.ivar
+    wave = muse_data.wave
+
+    if redshift_dict is None:
+        util.sys_message("No redshift map provided. Constructing redshift map...")
+        from redshift import redshift_map
+        redshift_dict = redshift_map(muse_data)
+
+    zmap = redshift_dict.get('map', None)
+    if zmap is None:
+        raise KeyError(f"redshift_dict input to snr_map missing 'map' key")
+    
+    snr = np.zeros_like(spatial_bins)
+    snr_mask = np.zeros_like(spatial_bins, dtype=np.uint32)
+
+    items = np.unique(spatial_bins)
+    iterator = tqdm(items, desc="Constructing S/N MAP") if verbose else items
+
+    for binID in iterator:
+        w, y, x = util.get_bin_coords(binID, spatial_bins, return_truth=True)
+
+
+
+def NaD_snr_map(galname, bin_method, zmap = None, verbose=False, write_data = True):
+    datapath_dict = file_handler.init_datapaths(galname, bin_method)
+
+    with fits.open(datapath_dict['LOGCUBE']) as cube:
+        spatial_bins = cube['BINID'].data[0]
+        fluxcube = cube['FLUX'].data
+        ivarcube = cube['IVAR'].data
+        wave = cube['WAVE'].data
+
+    with fits.open(datapath_dict['MAPS']) as maps:
+        stellarvel = maps['STELLAR_VEL'].data
+
+    if zmap is None:
+        with fits.open(datapath_dict['LOCAL']) as local:
+            zmap = local['redshift'].data
+
+    snr_map = np.zeros_like(stellarvel)
+    windows = [(5865, 5875), (5915, 5925)]
+
+    items = np.unique(spatial_bins)
+    iterator = tqdm(np.unique(spatial_bins)[1:], desc="Constructing S/N Map") if verbose else items
+    for ID in iterator:
+        w = ID == spatial_bins
+        y_inds, x_inds = np.where(w)
+        
+        z_bin = zmap[w][0]
+        wave_bin = wave / (1+z_bin)
+
+        wave_window = (wave_bin>=windows[0][0]) & (wave_bin<=windows[0][1]) | (wave_bin>=windows[1][0]) & (wave_bin<=windows[1][1])
+        wave_inds = np.where(wave_window)[0]
+        
+        flux_arr = fluxcube[wave_inds, y_inds[0], x_inds[0]]
+        ivar_arr = ivarcube[wave_inds, y_inds[0], x_inds[0]]
+        sigma_arr = 1/np.sqrt(ivar_arr)
+        
+        real = np.isfinite(flux_arr) & np.isfinite(sigma_arr) & (sigma_arr > 0)
+        snr_map[w] = np.median(flux_arr[real] / sigma_arr[real])
+    
+    snr_map[~np.isfinite(snr_map)] = 0
+
+    hduname = "NaI_SNR"
+
+    snr_header = {
+        hduname:{
+            "DESC":(f"{galname} median S/N of NaI",""),
+            "HDUCLASS":("MAP", "Data format"),
+            "UNITS":("", "Unit of pixel values"),
+            "EXTNAME":(hduname, "Extension name"),
+            "AUTHOR":("Andrew Pitts","")
+        }
+    }
+
+    snr_dict = {"NaI_SNR":snr_map}
+
+    if write_data:
+        snr_mapdict = file_handler.standard_map_dict(galname, snr_dict, custom_header_dict=snr_header)
+        file_handler.write_maps_file(galname, bin_method, [snr_mapdict], verbose=verbose)
+    else:
+        return snr_dict, snr_header
+
