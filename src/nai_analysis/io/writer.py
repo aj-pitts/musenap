@@ -28,7 +28,7 @@ def map_to_fits(muse_map: MuseMAP, galname: str, bin_method: str, outpath: Optio
         hdul.append(fits.ImageHDU(data=muse_map.data, header=data_header, name=muse_map.name))
 
         mask_header = dict_to_header(muse_map.mask_header)
-        mask_header['UPDATED'] = datetime.datetime.now(datetime.timezone.utc)
+        mask_header['UPDATED'] = (datetime.datetime.now(datetime.timezone.utc), "Time of last update UTC")
         hdul.append(fits.ImageHDU(data=muse_map.mask, header=mask_header, name=f"{muse_map.name}_MASK"))
 
         error_header = dict_to_header(muse_map.error_header)

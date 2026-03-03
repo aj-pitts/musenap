@@ -32,7 +32,7 @@ class MuseMapBitMask:
         self.bitdefs = self.default_bitdefs() | self.add_bits
         self.bitdescriptions = self.default_bitdescriptions() | self.add_bit_descriptions
 
-    def _validate_additional(self, additional_bitdefs):
+    def _validate_additional(self, additional_bitdefs: dict):
         default_bits = list(self.bitdefs.values())
         if additional_bitdefs is not None:
             add_bit_vals = []

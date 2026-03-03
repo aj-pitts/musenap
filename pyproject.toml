@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "NaI_analysis"
+version = "0.1.0"
+description = "Analysis tools for Na I absorption in MUSE datacubes"
+authors = [{ name = "Andrew Pitts" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "astropy",
+    "matplotlib",
+    "pandas",
+    "bokeh",
+    "plotly",
+    "mpmath",
+    "tqdm",
+]
+
+[tool.setuptools.packages.find]
+where = ["modules"]

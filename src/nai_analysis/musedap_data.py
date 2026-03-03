@@ -5,10 +5,12 @@ from functools import cached_property
 
 class MuseDAPData:
     """A class to handle unpacking and storing all of the data output by the MUSE DAP"""
-    def __init__(self, galaxy_name, bin_method, logcube_filepath, maps_filepath, local_filepath, config_filepath, verbose = False):
+    def __init__(self, galaxy_name: str, bin_method: str, analysis_plans: str,
+                logcube_filepath: str, maps_filepath: str, local_filepath: str, config_filepath: str, mcmc_dir: str, verbose = False):
         # galaxy info
-        self.name = galaxy_name
+        self.galname = galaxy_name
         self.bin_method = bin_method
+        self.analysisplan = analysis_plans
 
         # flags
         self.verbose = verbose
@@ -18,6 +20,7 @@ class MuseDAPData:
         self.maps_path = maps_filepath
         self.local_path = local_filepath
         self.config_path = config_filepath
+        self.mcmc_dir = mcmc_dir
 
         # assign the config file to self
         self._open_config()
@@ -27,7 +30,7 @@ class MuseDAPData:
         datapath_dict = file_handler.get_data_paths(galaxy_name, binning_method, verbose=verbose)
 
         return cls(galaxy_name, binning_method, datapath_dict['LOGCUBE'], datapath_dict['MAPS'], datapath_dict['LOCAL'],
-                   datapath_dict['CONFIG'], verbose = verbose)
+                   datapath_dict['CONFIG'], datapath_dict['MCMC_DIR'], verbose = verbose)
 
 
     @staticmethod
@@ -146,21 +149,6 @@ class MuseDAPData:
     @cached_property
     def emline_gflux_mask(self):
         return self._open_maps('EMLINE_GFLUX_MASK')
-    
-    def compute_MAPs(self):
-        pass
-
-    def sfr(self):
-        pass
-
-    def bpt(self):
-        pass
-
-    def analyze(self) -> None:
-        pass
-
-    def plot_results(self) -> None:
-        pass
 
 
 

@@ -52,7 +52,7 @@ def DAP_pix_mask(DAPPIXMASK: np.ndarray | int, bit_list: Optional[list[int]] = N
         raise ValueError("Invalid input for DAPPIXMASK")
 
 #### DATA HELPERS
-def maks_arrays(truth_array: Union[List[bool], np.ndarray], *arrays: np.ndarray) -> tuple:
+def mask_arrays(truth_array: Union[List[bool], np.ndarray], *arrays: np.ndarray) -> tuple:
     """Filter array(s) using a boolean truth array."""
     
     if len(arrays) == 0:
