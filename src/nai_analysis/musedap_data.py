@@ -1,7 +1,8 @@
 import numpy as np
 from astropy.io import fits
-from utils import defaults, file_handler, util
 from functools import cached_property
+
+from src.nai_analysis.utils import defaults, file_handler
 
 class MuseDAPData:
     """A class to handle unpacking and storing all of the data output by the MUSE DAP"""
@@ -28,8 +29,8 @@ class MuseDAPData:
     @classmethod
     def from_name(cls, galaxy_name: str, binning_method: str, verbose = False):
         datapath_dict = file_handler.get_data_paths(galaxy_name, binning_method, verbose=verbose)
-
-        return cls(galaxy_name, binning_method, datapath_dict['LOGCUBE'], datapath_dict['MAPS'], datapath_dict['LOCAL'],
+        plans = defaults.analysis_plans()
+        return cls(galaxy_name, binning_method, plans, datapath_dict['LOGCUBE'], datapath_dict['MAPS'], datapath_dict['LOCAL'],
                    datapath_dict['CONFIG'], datapath_dict['MCMC_DIR'], verbose = verbose)
 
 
@@ -44,15 +45,15 @@ class MuseDAPData:
         self.default_config = file_handler.parse_ini_file(self.config_path)
 
     def _open_logcube(self, HDU_name: str) -> np.ndarray:
-        with fits.open(self.logcube) as hdul:
+        with fits.open(self.logcube_path) as hdul:
             return hdul[HDU_name].data.copy()
     
     def _open_maps(self, HDU_name: str) -> np.ndarray:
-        with fits.open(self.maps) as hdul:
+        with fits.open(self.maps_path) as hdul:
             return hdul[HDU_name].data.copy()
     
     def _open_local(self, HDU_name: str) -> np.ndarray:
-        with fits.open(self.local) as hdul:
+        with fits.open(self.local_path) as hdul:
             return hdul[HDU_name].data.copy()
 
     # config file properties
@@ -149,55 +150,3 @@ class MuseDAPData:
     @cached_property
     def emline_gflux_mask(self):
         return self._open_maps('EMLINE_GFLUX_MASK')
-
-
-
-# class MUSEData:
-#     """Short one-line summary.
-    
-#     Longer description of what the class represents,
-#     what main data it stores, and how it’s typically used.
-#     """
-
-#     # 1️⃣ Class-level constants or defaults
-#     DEFAULT_EXTENSIONS = ("FLUX", "VARIANCE", "MASK")
-
-#     # 2️⃣ __init__ and dunder (special) methods
-#     def __init__(self, path: str):
-#         self.path = path
-#         self._header_cache = None
-
-#     def __repr__(self):
-#         return f"<MUSEData: {self.path}>"
-
-#     # 3️⃣ Class methods and static methods (if any)
-#     @classmethod
-#     def from_directory(cls, directory: str):
-#         ...
-
-#     @staticmethod
-#     def _validate_header(header):
-#         ...
-
-#     # 4️⃣ Private helper methods (_something)
-#     def _open_hdul(self):
-#         ...
-
-#     def _get_extension(self, key: str):
-#         ...
-
-#     # 5️⃣ Public methods
-#     def get_flux(self):
-#         ...
-
-#     def make_ew_map(self):
-#         ...
-
-#     # 6️⃣ Properties (often grouped near the bottom)
-#     @property
-#     def flux(self):
-#         return self._get_extension("FLUX")
-
-#     @property
-#     def variance(self):
-#         return self._get_extension("VARIANCE")

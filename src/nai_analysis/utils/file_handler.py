@@ -6,15 +6,11 @@ import re
 from datetime import datetime
 from glob import glob
 import numpy as np
-import warnings
 import configparser
 from datetime import datetime
 from tqdm import tqdm
-import yaml
 
-from musedap_data import MuseDAPData
-import util
-import defaults
+from src.nai_analysis.utils import util, defaults
 
 def get_data_paths(galname: str, bin_method: str, require_local = False, verbose=False) -> dict:
     """
@@ -42,7 +38,8 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
     corr_key = 'BETA-CORR'
 
     # initialize paths to the pipeline data directory and relevant subdirectories
-    pipeline_directory = defaults.get_data_path(subdir='pipeline')
+    data_direcotry = defaults.get_data_path()
+    pipeline_directory = os.path.join(data_direcotry, 'pipeline')
     musecubes_parent_dir = os.path.join(pipeline_directory, "muse_cubes")
     dap_parent_dir = os.path.join(pipeline_directory, "dap_outputs")
     mcmc_parent_dir = os.path.join(pipeline_directory, "mcmc_outputs")
@@ -62,9 +59,10 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
 
     config_path = configfils[0]
     outdict['CONFIG'] = config_path
+    util.sys_message(f"Found config file", verbose=verbose)
 
     # parse the config file and assign values for filepaths
-    default_config = parse_ini_file(config_path)
+    default_config = parse_ini_file(config_path, verbose=verbose)
     plate = default_config['plate']
     ifu = default_config['ifu']
 
@@ -77,12 +75,14 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
     logcube_path = os.path.join(dap_outputs_directory, logcube_file)
     util.check_filepath(logcube_path, mkdir=False)
     outdict['LOGCUBE'] = logcube_path
+    util.sys_message(f"Found LOGCUBE file", verbose=verbose)
 
     # get the maps file
     maps_file = f"manga-{plate}-{ifu}-MAPS-{bin_method}-{analysisplan}.fits"
     maps_path = os.path.join(dap_outputs_directory, maps_file)
     util.check_filepath(maps_path, mkdir=False)
     outdict['MAPS'] = maps_path
+    util.sys_message(f"Found MAPS file", verbose=verbose)
 
     # get the mcmc files
     mcmc_outputs_subtree = f"{corr_key}/{analysisplan}"
@@ -102,7 +102,7 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
                 date_str = match.group(1)
                 try:
                     date = datetime.strptime(date_str, "%Y-%m-%d")
-                    dated_dirs.append((subdir, date))
+                    dated_dirs.append((run, date))
                 except ValueError:
                     pass # ignore invalid date formats
         if dated_dirs:
@@ -112,26 +112,32 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
             raise ValueError(f"No valid 'Run_YYYY-MM-DD' subdirectories found in {mcmc_runs_path}")
 
     outdict['MCMC_DIR'] = mcmc_path
+    util.sys_message(f"Found MCMC path", verbose=verbose)
 
-    mcmc_files = glob(os.path.join(mcmc_path), "*.fits")
+    mcmc_files = glob(os.path.join(mcmc_path, "*.fits"))
     if len(mcmc_files) == 0:
         raise ValueError(f"mcmc path {mcmc_path} is an empty directory")
     outdict['MCMC'] = mcmc_files
+    util.sys_message(f"Found {len(mcmc_files)} MCMC files", verbose=verbose)
 
 
     # get the file path to the local data
-    local_parent_dir = defaults.get_data_path(subdir='local/local_outputs')
+    local_parent_dir = os.path.join(data_direcotry, 'local/nap_outputs')
+    util.check_filepath(local_parent_dir, verbose=verbose)
+
     local_data_directory = os.path.join(local_parent_dir, galsubdir, corr_key, analysisplan)
-    local_file = f"{galname}-{bin_method}-local_maps.fits"
+    util.check_filepath(local_data_directory, verbose=verbose)
+
+    local_file = f"{galname}-{bin_method}-NAP_MAPS.fits"
     local_path = os.path.join(local_data_directory, local_file)
     outdict['LOCAL'] = local_path
     
     # warn if the file does not exist as it is not required
-    if not os.path.exists(local_data_directory) or not os.path.isfile(local_path):
+    if not os.path.isfile(local_path):
         if require_local:
             raise ValueError(f"local file does not exist")
         else:
-            raise UserWarning(f"local file does not exist")
+            util.sys_message(f"local file does not exist", status='WARN', color='yellow')
         
     return outdict
 
@@ -147,6 +153,7 @@ def parse_ini_file(config_file, solve_parser = True, verbose = False):
     while parsing:
         try:
             config.read(config_file)
+            parsing = False
         except configparser.Error as e:
             if not solve_parser:
                 raise configparser.Error(e)

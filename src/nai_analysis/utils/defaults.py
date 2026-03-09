@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import time
 import json
 from typing import Optional
 
@@ -30,11 +29,52 @@ def get_data_path() -> str:
     
     return data_path
 
+def get_local_data_path() -> str:
+    """Returns the root path to the local data directory, a subdirectory of 'data_path' in config/paths.json"""
+    datapath = get_data_path()
+    local = os.path.join(datapath, 'local')
+
+    if not os.path.exists(local):
+        raise ValueError(f"Local Path does not exist! {local}")
+    
+    return local
+
+def get_nap_outputs_path() -> str:
+    local = get_local_data_path()
+    nap_outputs = os.path.join(local, 'nap_outputs')
+
+    if not os.path.exists(nap_outputs):
+        raise ValueError(f"NAP outputs path does not exist {nap_outputs}")
+    
+    return nap_outputs
+
+def get_local_galaxy_dir(galname: str, bin_method: str, analysis_plan: str = None) -> str:
+    """
+    Returns the root path to the local data directory of a specific galaxy
+    Assumes the local directory is a subdirectory of 'data_path' in config/paths.json
+    """
+    nap_out = get_nap_outputs_path()
+    analysis = analysis_plans() if analysis_plan is None else analysis_plan
+    subdir = os.path.join(nap_out, f"{galname}-{bin_method}", "BETA-CORR", analysis)
+    if not os.path.exists(subdir):
+        raise ValueError(f"Galaxy directory not found: {subdir}")
+    return subdir
+
+def get_pipeline_data_path() -> str:
+    """Returns the root path to the pipeline data directory, a subdirectory of 'data_path' in config/paths.json"""
+    datapath = get_data_path()
+    pipeline = os.path.join(datapath, 'pipeline')
+
+    if not os.path.exists(pipeline):
+        raise ValueError(f"Pipeline Path does not exist! {pipeline}")
+    
+    return pipeline
+
 def matplotlib_rc() -> str:
     """Returns the path to the Matplotlib style file in config/"""
-    style_file = os.path.join(get_default_path('config'), 'figures.mplstyle')
+    style_file = os.path.join(get_default_path('plotting'), 'figures.mplstyle')
     if not os.path.exists(style_file):
-        raise ValueError(f"'figures.mplstyle' not found in config/")
+        raise ValueError(f"'figures.mplstyle' not found in {style_file}")
     return style_file
 
 def analysis_plans() -> str:

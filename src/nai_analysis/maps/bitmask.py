@@ -1,6 +1,7 @@
 from typing import Optional
 import numpy as np
-from utils.util import sys_message
+
+from src.nai_analysis.utils.util import sys_message
 
 class MuseMapBitMask:
     def __init__(self, additional_bitdefs: Optional[dict[str, int | tuple[int, str]]] = None):
@@ -15,6 +16,9 @@ class MuseMapBitMask:
             ... . Any non-unique bit index will be ignored. The values of `additonal_bitdefs` may be
             tuples containing the bit index and a description of the flag.
         """
+        self.bitdefs = self.default_bitdefs()
+        self.bitdescriptions = self.default_bitdescriptions()
+
         self._validate_additional(additional_bitdefs)
 
         self.additional_bitdefs = additional_bitdefs if additional_bitdefs is not None else {}
@@ -61,6 +65,7 @@ class MuseMapBitMask:
 
     def flag(self, bitname: str) -> int:
         """Return the integer value of a single flag"""
+        bitname = self._format_bitname(bitname)
         return 1 << self.bitdefs[bitname]
 
     def set_flag(self, bitmask: np.ndarray[np.uint32], condition: np.ndarray[bool], bitname: str | list[str]) -> None:
@@ -89,7 +94,7 @@ class MuseMapBitMask:
             bitname = [bitname]
 
         for bitn in bitname:
-            bitmask[condition] |= self.flag(bitn.upper().replace(' ', '_'))
+            bitmask[condition] |= self.flag(self._format_bitname(bitn))
 
     def flagged(self, bitmask: np.ndarray, bitname: str) -> np.ndarray:
         """Return boolean mask where the bit is set"""
@@ -126,3 +131,7 @@ class MuseMapBitMask:
             mask_header[f"BIT_{bit}"] = (flag_name, f'Descrption of mask Bit {bit}')
         return mask_header
             
+
+    @staticmethod
+    def _format_bitname(bitname: str) -> str:
+        return bitname.upper().replace(' ', '_')

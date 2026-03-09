@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from musedap_data import MuseDAPData
-from musenap_data import MuseNAPData
-from typing import Optional, TYPE_CHECKING
-from maps.musemap import MuseMAP
+from typing import TYPE_CHECKING
+
+from src.nai_analysis.musedap_data import MuseDAPData
+from src.nai_analysis.maps.musemap import MuseMAP
 
 if TYPE_CHECKING:
-    from engine.measurement_engine import MeasurementEngine
+    from src.nai_analysis.engine.measurement_engine import MeasurementEngine
 
 class MeasurementMAP(ABC):
 
@@ -21,4 +21,3 @@ class MeasurementMAP(ABC):
     def compute(self, engine: "MeasurementEngine") -> MuseMAP:
         """Compute the measurement and return a MuseMAP instance."""
         pass
-    
