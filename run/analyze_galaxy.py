@@ -21,10 +21,12 @@ def validate_paths(galname, bin_method, verbose = True) -> None:
     util.check_filepath(figures, verbose=verbose)
     map_figs = os.path.join(figures, 'maps')
     hist_figs = os.path.join(figures, 'hists')
+    results_figs = os.path.join(figures, 'results')
     util.check_filepath(map_figs, verbose=verbose)
     util.check_filepath(hist_figs, verbose=verbose)
+    util.check_filepath(results_figs, verbose=verbose)
 
-def analyze(galname, bin_method, verbose = False):
+def analyze(galname, bin_method, dry_run = False, verbose = False):
     validate_paths(galname, bin_method, verbose=verbose)
 
     muse_data = MuseDAPData.from_name(galaxy_name=galname, binning_method=bin_method, verbose=verbose)
@@ -34,8 +36,9 @@ def analyze(galname, bin_method, verbose = False):
     util.sys_message(f"Beginning pipeline for {galname} {bin_method}", verbose=verbose)
     for name in registry.keys():
         result = engine.get(name)
-        result.plot_data(verbose=verbose)
-        result.write_to_fits(verbose=verbose)
+        if not dry_run:
+            result.plot_data(verbose=verbose)
+            result.write_to_fits(verbose=verbose)
 
 def get_args():
     parser = argparse.ArgumentParser(description="Run the pipeline for a galaxy")
@@ -43,9 +46,10 @@ def get_args():
     parser.add_argument('galname', type=str, help="Input galaxy name.")
     parser.add_argument('bin_method', type=str, help="Input DAP spatial binning method.")
     parser.add_argument('-v','--verbose', help = "Print verbose outputs (default: False)", action='store_true', default = False)
+    parser.add_argument('--dryrun', help = "Do not save data or plots (default: False)", action='store_true', default = False)
 
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = get_args()
-    analyze(args.galname, args.bin_method, args.verbose)
+    analyze(args.galname, args.bin_method, args.dryrun, args.verbose)

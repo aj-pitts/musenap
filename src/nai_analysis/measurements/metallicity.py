@@ -1,80 +1,109 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from astropy.io import fits
-from astropy.table import Table, join, Column
-import pandas as pd
-from glob import glob
-import os
-import re
-from datetime import datetime
-import argparse
-from tqdm import tqdm
-from modules import defaults, file_handler, util, plotter, inspect
+from numpy.polynomial.polynomial import polyroots, polyval, polyder
+from scipy.ndimage import median as ndmedian
 
-from genesis_metallicity.genesis_metallicity import genesis_metallicity
+from src.nai_analysis.measurements.measurement_map import MeasurementMAP
+from src.nai_analysis.maps.musemap import MuseMAP
+from src.nai_analysis.maps.bitmask import MuseMapBitMask
+from src.nai_analysis.utils import util, progress
+from typing import TYPE_CHECKING
 
-def get_args():
-    parser = argparse.ArgumentParser(description="A script to create an Na I velocity map from the MCMC results of a beta-corrected galaxy.")
+import time
 
-    parser.add_argument('galname', type=str, help="Input galaxy name.")
-    parser.add_argument('bin_method', type=str, help="Input DAP spatial binning method.")
-    parser.add_argument('-v','--verbose', help = "Print verbose outputs (default: False)", action='store_true', default = False)
-
-    return parser.parse_args()
-
-def make_metallicity_map(galname, bin_method, verbose = False):
-    datapaths = file_handler.init_datapaths(galname, bin_method)
-
-    with fits.open(datapaths['MAPS']) as hdul:
-        spatial_bins = hdul['binid'].data[0]
-        emlines = hdul['emline_gflux'].data
-        emlines_ivar = hdul['emline_gflux_ivar'].data
-        emlines_mask = hdul['emline_gflux_mask'].data
-
-        emlines_ew = hdul['emline_gew'].data
-        emlines_ew_ivar = hdul['emline_gew_ivar'].data
-        emlines_ew_mask = hdul['emline_gew_mask'].data
-
-    with fits.open(datapaths['LOCAL']) as hdul:
-        redshift = hdul['redshift'].data
-    
-    metallicity = np.zeros_like(spatial_bins)
-    metallicity_error = np.zeros_like(spatial_bins)
-    metallicity_mask = np.zeros_like(spatial_bins)
-
-    ## TODO update masking!!!
-    for binID in np.unique(spatial_bins):
-        if binID == -1:
-            continue
-        w = binID == spatial_bins
-        ny, nx = np.where(w)
-        y, x = ny[0], nx[0]
-
-        emlines_bin = emlines[:, y, x]
-        emlines_ivar_bin = emlines_ivar[:, y, x]
-        emlines_mask_bin = emlines_mask[:, y, x]
-
-        ew_bin = emlines_ew[:, y, x]
-        ew_ivar_bin = emlines_ew_ivar[:, y, x]
-        ew_mask_bin = emlines_ew_mask[:, y, x]
-
-        input_dict = {}
-        input_dict['redshift'] = redshift[y, x]
-
-        input_dict['OII']      = [emlines_bin[0], 1 / np.sqrt(emlines_ivar_bin[0])] # 'OII-3727', 'OII-3729' in channel 2
-        input_dict['Hdelta']   = [emlines_bin[11], 1 / np.sqrt(emlines_ivar_bin[11])]
-        input_dict['Hgamma']   = [emlines_bin[12], 1 / np.sqrt(emlines_ivar_bin[12])]
-        #input_dict['O4363']    = 
-        input_dict['Hbeta']    = [emlines_bin[14], 1 / np.sqrt(emlines_ivar_bin[14])]
-        input_dict['O4959']    = [emlines_bin[15], 1 / np.sqrt(emlines_ivar_bin[15])]
-        input_dict['O5007']    = [emlines_bin[16], 1 / np.sqrt(emlines_ivar_bin[16])]
-        input_dict['Hbeta_EW'] = [ew_bin[0], 1 / np.sqrt(ew_ivar_bin[0])]
-
-        galaxy = genesis_metallicity(input_dict=input_dict, object=galname)
-
-        metallicity[w] = galaxy.metallicity.n
-        metallicity_error[w] = galaxy.metallicity.s
+if TYPE_CHECKING:
+    from src.nai_analysis.engine.measurement_engine import MeasurementEngine
 
 
+class MetallicityMAP(MeasurementMAP):
 
-    
+    name = "metallicity"
+    dependencies = []
+
+    def compute(self, engine: "MeasurementEngine") -> MuseMAP:
+        with progress.ProgressWheel(f"Computing {self.name} MAP"):
+            start = time.time()
+
+            dap_data = self.dap_data
+            spatial_bins = dap_data.spatial_bins
+
+            h_alpha = dap_data.get_emline("EMLINE_GFLUX", 'Ha-6564')
+            h_beta = dap_data.get_emline("EMLINE_GFLUX", 'Hb-4862')
+
+            n_ii = dap_data.get_emline("EMLINE_GFLUX", 'NII-6585')
+            o_iii = dap_data.get_emline("EMLINE_GFLUX", 'OIII-5008')
+
+            n2 = n_ii.data / h_alpha.data
+            o3n2 = (o_iii.data / h_beta.data) / (n2)
+
+            # https://academic.oup.com/mnras/article/491/1/944/5638748
+            coef_o3n2 = [0.281, -4.765, -2.268]
+            coef_n2 = [-0.489, 1.513, -2.554, -5.293, -2.867]
+            coefficients = {
+                'N2':[-0.489, 1.513, -2.554, -5.293, -2.867],
+                'O3N2':[0.281, -4.765, -2.268],
+                'O3S2':[0.191, -4.292, -2.538, 0.053, 0.332],
+                'RS32':[-0.054, -2.546, -1.970, 0.082, 0.222 ],
+                'S2':[-0.442, -0.360, -6.271, -8.339, -3.559 ],
+                'R3':[-0.277, -3.549, -3.593, -0.981]
+            }
+
+            Z_map = MuseMAP.empty_from_binmap("metallicity", dap_data.galname, dap_data.bin_method, spatial_bins)
+            bm = MuseMapBitMask()
+            bm.set_flag(Z_map.mask, spatial_bins==-1, ['NO VALUE'])
+
+            for binid in np.unique(spatial_bins)[1:]:
+                w = binid == spatial_bins
+                log_o3n2 = np.log10(np.median(o3n2[w]))
+                log_n2 = np.log10(np.median(n2[w]))
+
+                if not np.isfinite(log_o3n2) and not np.isfinite(log_n2):
+                    bm.set_flag(Z_map.mask, w, ["DO NOT USE", "NO VALUE"])
+                    continue
+
+                Z_n2 = self.solve_metallicity(log_n2, coef_n2)
+                Z_o3n2 = self.solve_metallicity(log_o3n2, coef_o3n2)
+
+                if not np.isfinite(Z_n2) or not np.isfinite(Z_o3n2):
+                    bm.set_flag(Z_map.mask, w, ['UNRELIABLE'])
+                
+                Z = np.nanmean([Z_n2, Z_o3n2])
+
+                if not np.isfinite(Z):
+                    bm.set_flag(Z_map.mask, w, ['DO NOT USE', 'MATH ERROR'])
+                    continue
+
+                Z_map.data[w] = Z
+
+            end = time.time()
+        util.sys_message(f"Constructed {self.name} MAP: time to complete {end-start:.3g} s", color='green', verbose=self.verbose)
+        return Z_map
+
+
+    @staticmethod
+    def solve_metallicity(log_R: np.ndarray, coefficients: list) -> float:
+        if not np.isfinite(log_R):
+            return np.nan
+
+        z_ref = 8.69
+        z_lims = np.array([7.6, 8.9]) - z_ref
+
+        coeffs = coefficients.copy()
+        coeffs[0] -= log_R
+
+        roots = polyroots(coeffs)
+        real_roots = roots[np.abs(roots.imag) < 1e-6].real
+
+        if len(real_roots) == 0:
+            return np.nan
+        
+        elif len(real_roots) == 1:
+            x = real_roots[0]
+
+        else:
+            valid = real_roots[(real_roots > z_lims[0]) & (real_roots < z_lims[1])]
+            if len(valid) == 0:
+                return np.nan
+            
+            x = valid[np.argmin(valid)]
+        
+        return x + z_ref

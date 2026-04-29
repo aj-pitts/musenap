@@ -1,12 +1,60 @@
 import numpy as np
 from astropy.io import fits
 from functools import cached_property
+from typing import Optional
 
 from src.nai_analysis.utils import defaults, file_handler
 
+emline_keys = {
+    'OII-3727':1,
+    'OII-3729':2,
+    'H12-3751':3,
+    'H11-3771':4,
+    'Hthe-3798':5,
+    'Heta-3836':6,
+    'NeIII-3869':7,
+    'HeI-3889':8,
+    'Hzet-3890':9,
+    'NeIII-3968':10,
+    'Heps-3971':11,
+    'Hdel-4102':12,
+    'Hgam-4341':13,
+    'HeII-4687':14,
+    'Hb-4862':15,
+    'OIII-4960':16,
+    'OIII-5008':17,
+    'NI-5199':18,
+    'NI-5201':19,
+    'HeI-5877':20,
+    'OI-6302':21,
+    'OI-6365':22,
+    'NII-6549':23,
+    'Ha-6564':24,
+    'NII-6585':25,
+    'SII-6718':26,
+    'SII-6732':27,
+    'HeI-7067':28,
+    'ArIII-7137':29,
+    'ArIII-7753':30,
+    'Peta-9017':31,
+    'SIII-9071':32,
+    'Pzet-9231':33,
+    'SIII-9533':34,
+    'Peps-9548':35
+}
+
+class DAPMap:
+    """A simple container class to store DAP Maps, and their mask and ivar if present"""
+    def __init__(self, name: str, data: np.ndarray, mask: Optional[np.ndarray], ivar: Optional[np.ndarray]):
+        self.name = name
+        self.data = data
+        self.mask = mask
+        self.ivar = ivar
+
+
 class MuseDAPData:
     """A class to handle unpacking and storing all of the data output by the MUSE DAP"""
-    def __init__(self, galaxy_name: str, bin_method: str, analysis_plans: str,
+    def __init__(self, galaxy_name: str, bin_method: str, analysis_plans: str, cube_filepath: str,
                 logcube_filepath: str, maps_filepath: str, local_filepath: str, config_filepath: str, mcmc_dir: str, verbose = False):
         # galaxy info
         self.galname = galaxy_name
@@ -17,6 +65,7 @@ class MuseDAPData:
         self.verbose = verbose
 
         # get data paths
+        self.cube_path = cube_filepath
         self.logcube_path = logcube_filepath
         self.maps_path = maps_filepath
         self.local_path = local_filepath
@@ -30,7 +79,7 @@ class MuseDAPData:
     def from_name(cls, galaxy_name: str, binning_method: str, verbose = False):
         datapath_dict = file_handler.get_data_paths(galaxy_name, binning_method, verbose=verbose)
         plans = defaults.analysis_plans()
-        return cls(galaxy_name, binning_method, plans, datapath_dict['LOGCUBE'], datapath_dict['MAPS'], datapath_dict['LOCAL'],
+        return cls(galaxy_name, binning_method, plans, datapath_dict['CUBE'], datapath_dict['LOGCUBE'], datapath_dict['MAPS'], datapath_dict['LOCAL'],
                    datapath_dict['CONFIG'], datapath_dict['MCMC_DIR'], verbose = verbose)
 
 
@@ -56,7 +105,37 @@ class MuseDAPData:
         with fits.open(self.local_path) as hdul:
             return hdul[HDU_name].data.copy()
 
-    # config file properties
+    def get_map_data(self, HDU_name: str) -> DAPMap:
+        data = self._open_maps(HDU_name)
+        try:
+            mask = self._open_maps(f"{HDU_name}_MASK")
+        except:
+            mask = None
+        
+        try:
+            ivar = self._open_maps(f"{HDU_name}_MASK")
+        except:
+            ivar = None
+
+        return DAPMap(HDU_name, data, mask, ivar)
+        
+    
+    def get_emline(self, HDU_name: str, emline_key: str) -> DAPMap:
+        ind = emline_keys.get(emline_key, None)
+        if ind is None:
+            raise ValueError(f"{emline_key} not a valid key\nValid emlines are {list(emline_keys.keys())}")
+        
+        ind -= 1 # convert from channel no. to Python index
+
+        emline_map = self.get_map_data(HDU_name)
+        data = emline_map.data[ind]
+        mask = emline_map.mask[ind] if emline_map.mask is not None else None
+        ivar = emline_map.ivar[ind] if emline_map.ivar is not None else None
+
+        return DAPMap(f"{HDU_name}_{emline_key}", data, mask, ivar)
+
+        
+    ## config file properties
     @property
     def redshift(self):
         return float(self.default_config['z'])
@@ -128,25 +207,13 @@ class MuseDAPData:
 
     ## relevant MAPS HDU's
     @cached_property
-    def stellar_vel(self):
-        return self._open_maps('STELLAR_VEL')
+    def r_coords(self):
+        return self._open_maps('SPX_ELLCOO')[1]
     
     @cached_property
-    def stellar_vel_ivar(self):
-        return self._open_maps('STELLAR_VEL_IVAR')
+    def r_coords_arcsec(self):
+        return self._open_maps('SPX_ELLCOO')[0]
     
-    @cached_property
-    def stellar_vel_mask(self):
-        return self._open_maps('STELLAR_VEL_MASK')
-
-    @cached_property
-    def emline_gflux(self):
-        return self._open_maps('EMLINE_GFLUX')
-    
-    @cached_property
-    def emline_gflux_ivar(self):
-        return self._open_maps('EMLINE_GFLUX_IVAR')
-    
-    @cached_property
-    def emline_gflux_mask(self):
-        return self._open_maps('EMLINE_GFLUX_MASK')
+    def plot_maps(self, show: bool = False, save: bool = True) -> None:
+        from src.nai_analysis.plotting.dap_maps import DAP_MAPS
+        DAP_MAPS(self, show=show, save=save, verbose=self.verbose)

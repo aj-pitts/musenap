@@ -4,10 +4,10 @@ mathtext.fontset : stix
 axes.formatter.useoffset : False
 
 savefig.bbox: tight
-figure.dpi : 600
+figure.dpi : 200
 
-font.size        : 16
-axes.labelsize : 16
+font.size        : 14
+axes.labelsize : 14
 xtick.labelsize : 14
 ytick.labelsize : 14
 

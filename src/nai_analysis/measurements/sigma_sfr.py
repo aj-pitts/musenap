@@ -37,7 +37,7 @@ class SigmaSfrMAP(MeasurementMAP):
 
             valid = spatial_bins>=0
             counts = np.bincount(spatial_bins[valid])
-            bin_sizes = np.zeros_like(spatial_bins)
+            bin_sizes = np.zeros_like(spatial_bins, dtype=float)
             bin_sizes[valid] = counts[spatial_bins[valid]]
 
             c = cst.c
@@ -49,11 +49,8 @@ class SigmaSfrMAP(MeasurementMAP):
             areas_per_bin = (D_kpc * angle_per_bin.radian)**2
             areas = bin_sizes * areas_per_bin
 
-
-            ha = DAP.emline_gflux[23]
-            #ha_ivar = DAP.emline_gflux_ivar[23]
-            hb = DAP.emline_gflux[14]
-            #hb_ivar = DAP.emline_gflux_ivar[14]
+            ha = DAP.get_emline('EMLINE_GFLUX', 'Ha-6564').data
+            hb = DAP.get_emline('EMLINE_GFLUX', 'Hb-4862').data
 
             flux = self.correct_dust(ha, hb)
 

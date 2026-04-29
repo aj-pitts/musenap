@@ -60,6 +60,10 @@ def get_local_galaxy_dir(galname: str, bin_method: str, analysis_plan: str = Non
         raise ValueError(f"Galaxy directory not found: {subdir}")
     return subdir
 
+def get_default_filename(galname: str, bin_method: str) -> str:
+    """Returns the NAP output FITS filename for the input galaxy"""
+    return f"{galname}-{bin_method}-NAP_MAPS.fits"
+
 def get_pipeline_data_path() -> str:
     """Returns the root path to the pipeline data directory, a subdirectory of 'data_path' in config/paths.json"""
     datapath = get_data_path()

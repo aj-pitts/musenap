@@ -98,7 +98,7 @@ def get_unique_bin_values(measurement_map: np.ndarray | dict, binmap: np.ndarray
         outdict = {}
         for key, m_map in measurement_map.items():
             select = m_map[~map_mask]
-            outdict[key]
+            outdict[key] = select[bin_inds]
             if return_masked:
                 rejected = m_map[map_mask]
                 outdict[f'{key}_rejected'] = rejected

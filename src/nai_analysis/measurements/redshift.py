@@ -31,18 +31,19 @@ class RedshiftMAP(MeasurementMAP):
 
             z_sys = dap_data.redshift
 
-            stellar_vel = dap_data.stellar_vel
-            stellar_vel_ivar = dap_data.stellar_vel_ivar
-            stellar_vel_mask = dap_data.stellar_vel_mask
+            vref_data = dap_data.get_map_data("STELLAR_VEL") # dap_data.get_emline("EMLINE_GVEL", 'Ha-6564')
+            vref = vref_data.data
+            vref_ivar = vref_data.ivar
+            vref_mask = vref_data.mask
             
             redshift = MuseMAP.empty_from_binmap(self.name, dap_data.galname, dap_data.bin_method, spatial_bins)
             bm = MuseMapBitMask()
 
-            z = (stellar_vel * (1 + z_sys)) / c + z_sys
-            z_error = ((1/np.sqrt(stellar_vel_ivar)) / c) * (1 + z_sys)
+            z = (vref * (1 + z_sys)) / c + z_sys
+            z_error = ((1/np.sqrt(vref_ivar)) / c) * (1 + z_sys)
 
 
-            dap_bad = util.DAP_pix_mask(stellar_vel_mask)
+            dap_bad = util.DAP_pix_mask(vref_mask)
 
             bm.set_flag(redshift.mask, spatial_bins == -1, ["no value", "do not use"])
             bm.set_flag(redshift.mask, dap_bad, ['do not use'])

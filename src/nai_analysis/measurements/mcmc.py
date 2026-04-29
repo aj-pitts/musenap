@@ -29,8 +29,8 @@ class LambdaMAP(MeasurementMAP):
             lambda_map = MuseMAP.empty_from_binmap(self.name, DAP.galname, DAP.bin_method, spatial_bins)
             bm = MuseMapBitMask()
 
-            data = np.zeros_like(spatial_bins)
-            error = np.zeros_like(spatial_bins)
+            data = np.zeros_like(spatial_bins, dtype=float)
+            error = np.zeros_like(spatial_bins, dtype=float)
 
             for row in mcmc_results:
                 binid = row['bin']
@@ -69,8 +69,8 @@ class LogNMAP(MeasurementMAP):
             logn_map = MuseMAP.empty_from_binmap(self.name, DAP.galname, DAP.bin_method, spatial_bins)
             bm = MuseMapBitMask()
 
-            data = np.zeros_like(spatial_bins)
-            error = np.zeros_like(spatial_bins)
+            data = np.zeros_like(spatial_bins, dtype=float)
+            error = np.zeros_like(spatial_bins, dtype=float)
 
             for row in mcmc_results:
                 binid = row['bin']
@@ -109,8 +109,8 @@ class bDMAP(MeasurementMAP):
             bd_map = MuseMAP.empty_from_binmap(self.name, DAP.galname, DAP.bin_method, spatial_bins)
             bm = MuseMapBitMask()
 
-            data = np.zeros_like(spatial_bins)
-            error = np.zeros_like(spatial_bins)
+            data = np.zeros_like(spatial_bins, dtype=float)
+            error = np.zeros_like(spatial_bins, dtype=float)
 
             for row in mcmc_results:
                 binid = row['bin']
@@ -149,8 +149,8 @@ class CfMAP(MeasurementMAP):
             cf_map = MuseMAP.empty_from_binmap(self.name, DAP.galname, DAP.bin_method, spatial_bins)
             bm = MuseMapBitMask()
 
-            data = np.zeros_like(spatial_bins)
-            error = np.zeros_like(spatial_bins)
+            data = np.zeros_like(spatial_bins, dtype=float)
+            error = np.zeros_like(spatial_bins, dtype=float)
 
             for row in mcmc_results:
                 binid = row['bin']

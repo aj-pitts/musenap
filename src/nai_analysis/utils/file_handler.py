@@ -50,6 +50,15 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
     mcmc_directory = os.path.join(mcmc_parent_dir, galsubdir)
     util.check_filepath([muse_cube_directory, dap_directory, mcmc_directory], mkdir=False)
 
+    # get the raw ESO cube file
+    musecubefils = glob(os.path.join(muse_cube_directory, "*.fits"))
+    if len(musecubefils) == 0:
+        raise ValueError(f"No MUSE cube found for {galname} {bin_method}")
+    if len(musecubefils) >1:
+        raise ValueError(f"More than one ESO MUSE FITS file found for {galname} {bin_method}") 
+    musecube_path = musecubefils[0]
+    outdict['CUBE'] = musecube_path
+
     # get config_file
     configfils = glob(os.path.join(muse_cube_directory, "*.ini"))
     if len(configfils) == 0:
@@ -138,6 +147,9 @@ def get_data_paths(galname: str, bin_method: str, require_local = False, verbose
             raise ValueError(f"local file does not exist")
         else:
             util.sys_message(f"local file does not exist", status='WARN', color='yellow')
+
+    else:
+        util.sys_message(f"Found NAP MAPS path", verbose=verbose)
         
     return outdict
 

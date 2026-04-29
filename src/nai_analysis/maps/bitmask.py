@@ -86,7 +86,7 @@ class MuseMapBitMask:
                 "DAPMASK"
                 "UNRELIABLE"
                 "MATH_ERROR"
-                "LOW_NAI_SNR"
+                "LOW_SNR_NAI"
                 "UNCERTAINTY_OOB"
                 "DO_NOT_USE"
         """
@@ -107,7 +107,7 @@ class MuseMapBitMask:
             "DAPMASK":1,
             "UNRELIABLE":2,
             "MATH_ERROR":3,
-            "LOW_NAI_SNR":4,
+            "LOW_SNR_NAI":4,
             "UNCERTAINTY_OOB":5,
             "DO_NOT_USE":30
         }
@@ -120,7 +120,7 @@ class MuseMapBitMask:
             "DAPMASK":'Spaxel covariate DAP MAP was flagged by DAPPIXMASK',
             "UNRELIABLE":'Uncertainty is large or could not be computed',
             "MATH_ERROR":'Mathematical error in computing value',
-            "LOW_NAI_SNR":'S/N of Na I is below user-set threshold',
+            "LOW_SNR_NAI":'S/N of Na I is below user-set threshold',
             "UNCERTAINTY_OOB":'Uncertainty is beyond user-set threshold',
             "DO_NOT_USE":'Do not use this spaxel for science'
         }
